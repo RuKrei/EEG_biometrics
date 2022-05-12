@@ -39,17 +39,16 @@ class SplitAndSaveEEG:
 
 class EEGTransformer:
     def __init__(
-        self, raw, desired_channels, target_sfreq, lowpass, highpass, n_jobs
+        self, desired_channels, target_sfreq, lowpass, highpass, n_jobs
     ) -> None:
-        self.raw = raw
         self.desired_channels = desired_channels
         self.target_sfreq = target_sfreq
         self.lowpass = lowpass
         self.highpass = highpass
         self.n_jobs = n_jobs
 
-    def _drop_unwanted_channels(self):
-        raw = mne.io.read_raw_edf(self.raw, preload=True)
+    def _drop_unwanted_channels(self, raw):
+        raw = mne.io.read_raw_edf(raw, preload=True)
         base = raw.info.ch_names
         raw.rename_channels(lambda s: s.strip("EEG "))
         before = raw.info.ch_names
@@ -63,7 +62,6 @@ class EEGTransformer:
         return raw, ch_mapping
 
     def _resampleEEG(self, raw):
-
         if not raw.info["sfreq"] == self.target_sfreq:
             raw.resample(self.target_sfreq)
         return raw
@@ -72,8 +70,8 @@ class EEGTransformer:
         raw.filter(self.lowpass, self.highpass, self.n_jobs)
         return raw
 
-    def transformEEG(self):
-        raw, ch_mapping = self._drop_unwanted_channels()
+    def transformEEG(self, raw):
+        raw, ch_mapping = self._drop_unwanted_channels(raw)
         raw = self._filter(raw)
         raw = self._resampleEEG(raw)
-        return ch_mapping, raw
+        return raw, ch_mapping
