@@ -5,36 +5,28 @@ import pandas as pd
 
 
 class SplitAndSaveEEG:
-    def __init__(self, raw, split_lenght) -> None:
-        self.raw = raw
-        self.split_length = split_lenght
+    def __init__(self, split_length, data_out) -> None:
+        self.split_length = split_length
+        self.data_out = data_out
 
-    def split_EEG(raw, split_length):
-        raw = mne.io.read_raw_edf(raw, preload=True)
-        if EEG_SOURCE.lower() == "keller":
-            print("--> Keller-EEG, renaming channels")
-            _prep_keller(raw)
-        print(raw.info)
-        if not raw.info["sfreq"] == TARGET_SFREQ:
-            print(
-                f"\n\n\n --> resampling data from {raw.info['sfreq']} to {TARGET_SFREQ} Hz"
-            )
-            raw.resample(TARGET_SFREQ)
-        raw.filter(LOWPASS, HIGHPASS, n_jobs=N_JOBS)
-
+    def split_EEG(self, raw, target) -> None:
+        raw.load_data()
+        target_stem = os.path.join(self.data_out, target)
         seconds = len(raw.get_data().T) / raw.info["sfreq"]
-        filename_bare = os.path.splitext(eeg_file)[0]
-
-        n_rawfiles = int(seconds / split_length) - 1
+        n_rawfiles = int(seconds / self.split_length) - 1
         start = 0
-        stop = start + split_length
-
+        stop = start + self.split_length
+        existing_files = glob.glob(os.path.join(self.data_out, target + "*"))
+        print(f"The following files exist from this subject:\n{existing_files}\n\n")
+        print("The following files have been created for this subject:\n")
         for i in range(n_rawfiles):
-            cropfile = raw.copy().crop(tmin=start, tmax=(stop))
-            loop_filename = str(filename_bare + "_split_" + str(i) + ".npy")
-            start += split_length
-            stop = start + split_length
-            np.save(loop_filename, cropfile.get_data())
+            start += self.split_length
+            stop = start + self.split_length
+            cropfile = raw.copy().crop(tmin=start, tmax=stop)
+            idx = len(existing_files) + i + 1
+            filename = target + "_split_" + str(idx) + ".edf"
+            mne.export.export_raw(filename, cropfile, fmt="edf")
+            print(f"Index = {idx}, Now writing: {filename}\n")
 
 
 class EEGTransformer:
@@ -75,3 +67,6 @@ class EEGTransformer:
         raw = self._filter(raw)
         raw = self._resampleEEG(raw)
         return raw, ch_mapping
+
+if __name__ == "__main__":
+    pass
